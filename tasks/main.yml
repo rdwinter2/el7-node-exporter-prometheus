@@ -1,3 +1,88 @@
 ---
 # tasks file for el7-prometheus
+
+# sudo useradd --no-create-home --shell /bin/false prometheus
+- name: Create the prometheus user
+  user:
+    name: prometheus
+    comment: Prometheus metrics and alerting user
+    shell: /bin/false
+    create_home: false
+
+# wget https://github.com/prometheus/node_exporter/releases/download/v*/node_exporter-*.*-amd64.tar.gz
+- name: Download the Prometheus Node Exporter binary from on-prem Sonatype Nexus repo
+  maven_artifact:
+    group_id: prometheus
+    artifact_id: prometheus/node_exporter-0.17.0.linux-amd64.tar.gz
+    repository_url: 'http://raw:8081/repository/raw/'
+    dest: /tmp/prometheus/node_exporter-0.17.0.linux-amd64.tar.gz
+
+
+tar xvfz node_exporter-*.*-amd64.tar.gz
+cd node_exporter-*.*-amd64
+./node_exporter
+
+
+sudo useradd --no-create-home --shell /bin/false prometheus
+sudo mkdir /etc/prometheus
+sudo mkdir /var/lib/prometheus
+sudo chown prometheus:prometheus /etc/prometheus
+sudo chown prometheus:prometheus /var/lib/prometheus
+curl -LO https://github.com/prometheus/prometheus/releases/download/v2.3.2/prometheus-2.3.2.linux-amd64.tar.gz
+tar -xvf prometheus-2.3.2.linux-amd64.tar.gz
+mv prometheus-2.3.2.linux-amd64 prometheus-files
+sudo cp prometheus-files/prometheus /usr/local/bin/
+sudo cp prometheus-files/promtool /usr/local/bin/
+sudo chown prometheus:prometheus /usr/local/bin/prometheus
+sudo chown prometheus:prometheus /usr/local/bin/promtool
+sudo cp -r prometheus-files/consoles /etc/prometheus
+sudo cp -r prometheus-files/console_libraries /etc/prometheus
+sudo chown -R prometheus:prometheus /etc/prometheus/consoles
+sudo chown -R prometheus:prometheus /etc/prometheus/console_libraries
+sudo vi /etc/prometheus/prometheus.yml
+global:
+  scrape_interval: 10s
+ 
+scrape_configs:
+  - job_name: 'prometheus'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['localhost:9090']
+sudo chown prometheus:prometheus /etc/prometheus/prometheus.yml
+sudo vi /etc/systemd/system/prometheus.service
+
+
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+
+    static_configs:
+      - targets: ['127.0.0.1:9090', '127.0.0.1:9100']
+        labels:
+          group: 'prometheus'
+
+docker run -d --net=host \
+    -v /root/prometheus.yml:/etc/prometheus/prometheus.yml \
+    --name prometheus-server \
+    prom/prometheus
+
+docker run -d \
+  -v "/proc:/host/proc" \
+  -v "/sys:/host/sys" \
+  -v "/:/rootfs" \
+  --net="host" \
+  --name=prometheus \
+  quay.io/prometheus/node-exporter:v0.13.0 \
+    -collector.procfs /host/proc \
+    -collector.sysfs /host/sys \
+    -collector.filesystem.ignored-mount-points "^/(sys|proc|dev|host|etc)($|/)"
+
+cd ~ && curl -L -o ~/grafana-4.5.1.linux-x64.tar.gz https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana-4.5.1.linux-x64.tar.gz && tar -zxvf ~/grafana-4.5.1.linux-x64.tar.gz
+
+cd ~/grafana-4.5.1/bin/ && ./grafana-server
+
+
 ...
