@@ -1,0 +1,13 @@
+---
+galaxy_info:
+  author: Robert D. Winter, 2nd
+  description: Install and configure Prometheus on Enterprise Linux 7
+  company:
+  issue_tracker_url:
+  license: MIT
+  min_ansible_version: 2.0
+  platforms:
+  - name: EL
+    versions:
+    - 7
+dependencies: []
