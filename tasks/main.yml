@@ -55,15 +55,6 @@
     owner: root
     group: root
     mode: '0777'
-
-- name: Issue daemon-reload to pick up config changes
-  systemd:
-    state: restarted
-    daemon_reload: yes
-
-- name: enable prometheus node_exporter
-  systemd:
-    name: node_exporter
-    state: started
-    enabled: yes
+  notify: restart node_exporter
+  when: not ansible_check_mode
 ...

@@ -1,3 +1,9 @@
 ---
 # handlers file for el7-prometheus
+- name: restart node_exporter
+  systemd:
+    name: node_exporter
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
 ...
