@@ -57,4 +57,11 @@
     mode: '0777'
   notify: restart node_exporter
   when: not ansible_check_mode
+
+- name: allow node_exported through the firewall
+  firewalld:
+    port: 9100/tcp
+    permanent: yes
+    immediate: yes
+    state: enabled
 ...
