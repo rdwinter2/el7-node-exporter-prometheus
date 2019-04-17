@@ -38,22 +38,6 @@
     state: directory
     mode: 0755
 
-- name: "Create /etc/prometheus owned by {{ node_exporter_system_user }}"
-  file:
-    path: /etc/prometheus
-    state: directory
-    owner: "{{ node_exporter_system_user }}"
-    group: "{{ node_exporter_system_group }}"
-    mode: 0755
-
-- name: "Create /var/lib/prometheus owned by {{ node_exporter_system_user }}"
-  file:
-    path: /var/lib/prometheus
-    state: directory
-    owner: "{{ node_exporter_system_user }}"
-    group: "{{ node_exporter_system_group }}"
-    mode: 0755
-
 - name: Propagate node_exporter binaries
   copy:
     src: "/tmp/node_exporter-{{ node_exporter.version }}.linux-amd64/node_exporter"
@@ -64,63 +48,22 @@
   notify: restart node_exporter
   when: not ansible_check_mode
 
-curl -LO https://github.com/prometheus/prometheus/releases/download/v2.3.2/prometheus-2.3.2.linux-amd64.tar.gz
-tar -xvf prometheus-2.3.2.linux-amd64.tar.gz
-mv prometheus-2.3.2.linux-amd64 prometheus-files
-sudo cp prometheus-files/prometheus /usr/local/bin/
-sudo cp prometheus-files/promtool /usr/local/bin/
-sudo chown prometheus:prometheus /usr/local/bin/prometheus
-sudo chown prometheus:prometheus /usr/local/bin/promtool
-sudo cp -r prometheus-files/consoles /etc/prometheus
-sudo cp -r prometheus-files/console_libraries /etc/prometheus
-sudo chown -R prometheus:prometheus /etc/prometheus/consoles
-sudo chown -R prometheus:prometheus /etc/prometheus/console_libraries
-sudo vi /etc/prometheus/prometheus.yml
-global:
-  scrape_interval: 10s
- 
-scrape_configs:
-  - job_name: 'prometheus'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['localhost:9090']
-sudo chown prometheus:prometheus /etc/prometheus/prometheus.yml
-sudo vi /etc/systemd/system/prometheus.service
+- name: Create the node_exporter.service from a template
+  template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: '0777'
 
+- name: Issue daemon-reload to pick up config changes
+  systemd:
+    state: restarted
+    daemon_reload: yes
 
-global:
-  scrape_interval:     15s
-  evaluation_interval: 15s
-
-scrape_configs:
-  - job_name: 'prometheus'
-
-    static_configs:
-      - targets: ['127.0.0.1:9090', '127.0.0.1:9100']
-        labels:
-          group: 'prometheus'
-
-cd 
-
-docker run -d --net=host \
-    -v /root/prometheus.yml:/etc/prometheus/prometheus.yml \
-    --name prometheus-server \
-    prom/prometheus
-
-docker run -d \
-  -v "/proc:/host/proc" \
-  -v "/sys:/host/sys" \
-  -v "/:/rootfs" \
-  --net="host" \
-  --name=prometheus \
-  quay.io/prometheus/node-exporter:v0.13.0 \
-    -collector.procfs /host/proc \
-    -collector.sysfs /host/sys \
-    -collector.filesystem.ignored-mount-points "^/(sys|proc|dev|host|etc)($|/)"
-
-cd ~ && curl -L -o ~/grafana-4.5.1.linux-x64.tar.gz https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana-4.5.1.linux-x64.tar.gz && tar -zxvf ~/grafana-4.5.1.linux-x64.tar.gz
-
-cd ~/grafana-4.5.1/bin/ && ./grafana-server
-
-
+- name: enable prometheus node_exporter
+  systemd:
+    name: node_exporter
+    state: started
+    enabled: yes
 ...
