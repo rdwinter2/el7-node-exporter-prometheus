@@ -2,32 +2,68 @@
 # tasks file for el7-prometheus
 
 # sudo useradd --no-create-home --shell /bin/false prometheus
-- name: Create the prometheus user
+- name: "Create the {{ node_exporter_system_user }} user"
   user:
-    name: prometheus
+    name: "{{ node_exporter_system_user }}"
     comment: Prometheus metrics and alerting user
     shell: /bin/false
     create_home: false
 
 # wget https://github.com/prometheus/node_exporter/releases/download/v*/node_exporter-*.*-amd64.tar.gz
-- name: Download the Prometheus Node Exporter binary from on-prem Sonatype Nexus repo
-  maven_artifact:
-    group_id: prometheus
-    artifact_id: prometheus/node_exporter-0.17.0.linux-amd64.tar.gz
-    repository_url: 'http://raw:8081/repository/raw/'
-    dest: /tmp/prometheus/node_exporter-0.17.0.linux-amd64.tar.gz
+- name: Download node_exporter binary to local folder
+  become: false
+  get_url:
+    url: "{{ node_exporter.url }}"
+    dest: "/tmp/{{ node_exporter.artifact }}"
+    checksum: "sha256:{{ node_exporter.checksum }}"
+  register: _download_binary
+  until: _download_binary is succeeded
+  retries: 5
+  delay: 2
+  delegate_to: localhost
+  check_mode: false
 
+- name: Unpack node_exporter binary
+  become: false
+  unarchive:
+    src: "/tmp/{{ node_exporter.artifact }}"
+    dest: "/tmp"
+    creates: "/tmp/node_exporter-{{ node_exporter.version }}.linux-amd64/node_exporter"
+  delegate_to: localhost
+  check_mode: false
 
-tar xvfz node_exporter-*.*-amd64.tar.gz
-cd node_exporter-*.*-amd64
-./node_exporter
+- name: Create /usr/local/bin
+  file:
+    path: /usr/local/bin
+    state: directory
+    mode: 0755
 
+- name: "Create /etc/prometheus owned by {{ node_exporter_system_user }}"
+  file:
+    path: /etc/prometheus
+    state: directory
+    owner: "{{ node_exporter_system_user }}"
+    group: "{{ node_exporter_system_group }}"
+    mode: 0755
 
-sudo useradd --no-create-home --shell /bin/false prometheus
-sudo mkdir /etc/prometheus
-sudo mkdir /var/lib/prometheus
-sudo chown prometheus:prometheus /etc/prometheus
-sudo chown prometheus:prometheus /var/lib/prometheus
+- name: "Create /var/lib/prometheus owned by {{ node_exporter_system_user }}"
+  file:
+    path: /var/lib/prometheus
+    state: directory
+    owner: "{{ node_exporter_system_user }}"
+    group: "{{ node_exporter_system_group }}"
+    mode: 0755
+
+- name: Propagate node_exporter binaries
+  copy:
+    src: "/tmp/node_exporter-{{ node_exporter.version }}.linux-amd64/node_exporter"
+    dest: "/usr/local/bin/node_exporter"
+    mode: 0750
+    owner: "{{ node_exporter_system_user }}"
+    group: "{{ node_exporter_system_group }}"
+  notify: restart node_exporter
+  when: not ansible_check_mode
+
 curl -LO https://github.com/prometheus/prometheus/releases/download/v2.3.2/prometheus-2.3.2.linux-amd64.tar.gz
 tar -xvf prometheus-2.3.2.linux-amd64.tar.gz
 mv prometheus-2.3.2.linux-amd64 prometheus-files
@@ -63,6 +99,8 @@ scrape_configs:
       - targets: ['127.0.0.1:9090', '127.0.0.1:9100']
         labels:
           group: 'prometheus'
+
+cd 
 
 docker run -d --net=host \
     -v /root/prometheus.yml:/etc/prometheus/prometheus.yml \

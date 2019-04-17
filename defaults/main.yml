@@ -1,3 +1,15 @@
 ---
 # defaults file for el7-prometheus
+node_exporter:
+  version: 0.17.0
+  binary:
+    host: raw:8081
+    path: repository/raw/prometheus
+    artifact: node_exporter-{{ node_exporter.version }}.linux-amd64.tar.gz
+  url: "http://{{ node_exporter.binary.host }}/{{ node_exporter.binary.path }}/{{ node_exporter.binary.artifact }}"
+  alternative_url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter.version }}/{{ node_exporter.binary.artifact }}"
+  checksum: d2e00d805dbfdc67e7291ce2d2ff151f758dd7401dd993411ff3818d0e231489
+node_exporter_system_user: prometheus
+node_exporter_system_group: prometheus
+
 ...
