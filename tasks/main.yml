@@ -13,9 +13,9 @@
 - name: Download node_exporter binary to local folder
   become: false
   get_url:
-    url: "{{ node_exporter.url }}"
-    dest: "/tmp/{{ node_exporter.binary.artifact }}"
-    checksum: "sha256:{{ node_exporter.checksum }}"
+    url: "{{ url }}"
+    dest: "/tmp/{{ artifact }}"
+    checksum: "sha256:{{ checksum }}"
   register: _download_binary
   until: _download_binary is succeeded
   retries: 5
@@ -28,7 +28,7 @@
   unarchive:
     src: "/tmp/{{ node_exporter.artifact }}"
     dest: "/tmp"
-    creates: "/tmp/node_exporter-{{ node_exporter.version }}.linux-amd64/node_exporter"
+    creates: "/tmp/node_exporter-{{ version }}.linux-amd64/node_exporter"
   delegate_to: localhost
   check_mode: false
 
@@ -40,7 +40,7 @@
 
 - name: Propagate node_exporter binaries
   copy:
-    src: "/tmp/node_exporter-{{ node_exporter.version }}.linux-amd64/node_exporter"
+    src: "/tmp/node_exporter-{{ version }}.linux-amd64/node_exporter"
     dest: "/usr/local/bin/node_exporter"
     mode: 0750
     owner: "{{ node_exporter_system_user }}"
