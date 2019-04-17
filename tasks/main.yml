@@ -26,7 +26,7 @@
 - name: Unpack node_exporter binary
   become: false
   unarchive:
-    src: "/tmp/{{ node_exporter.artifact }}"
+    src: "/tmp/{{ artifact }}"
     dest: "/tmp"
     creates: "/tmp/node_exporter-{{ version }}.linux-amd64/node_exporter"
   delegate_to: localhost
